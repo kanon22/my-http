@@ -4,18 +4,57 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <string.h>
+
+void raise_error(char* description){
+	perror(description);
+	printf("errno: %d\n", errno);
+}
+
+int write_msg(int sock, char* msg){
+	int len = strlen(msg);
+	if(write(sock, msg, len) != len){
+		raise_error("write");
+		return -1;
+	}
+	return len;
+}
+
+int http(int wsock, char* request){
+	char method[16];
+	char uri[256];
+	char version[64];
+
+	sscanf(request, "%s %s %s", method, uri, version);
+	//fprintf(stdout, "%s %s %s\n", method, uri, version);
+	/* GET以外のリクエストをはじく */
+	if (strcmp(method, "GET") != 0) {
+		write_msg(wsock, "HTTP1.1 501 ");
+		write_msg(wsock, "Not Implemented");
+	}
+
+	/* send message */
+	write_msg(wsock, "HTTP1.1 200 OK");
+	//write_msg(wsock, "HTTP1.1 302 FOUND\r\n");
+	//write_msg(wsock, "Location: https://hikalium.com");
+	return 0; //ステータスコード返したら楽しそう
+}
 
 int main(){
 	int rsock, wsock;
 	struct sockaddr_in addr, client;
-	int len, n;
+	unsigned len;
+	//int n;
+	char buf[1024];
 
 	/* ソケットの作成*/
 	rsock = socket(AF_INET, SOCK_STREAM, 0);
 	//rsock = socket(3000, 4000, 5000);
 	if(rsock < 0){
-		perror("socket");
-		printf("%d\n", errno);
+		//perror("socket");
+		//printf("%d\n", errno);
+		//return 1;
+		raise_error("socket");
 		return 1;
 	}
 
@@ -44,20 +83,16 @@ int main(){
 		len = sizeof(client);
 		wsock = accept(rsock, (struct sockaddr *)&client, &len);
 		if(wsock < 0){
-			perror("accept");
+			raise_error("accept");
 			break;
 		}
 
-
-
-		/* send message */
-		//n = write(wsock, "HELLO", 5);
-		//n = write(wsock, "HTTP1.1 200 OK", 14);
-		n = write(wsock, "HTTP1.1 302 FOUND\r\n", 19);
-		n = write(wsock, "Location: https://hikalium.com", 30);
-		if(n < 1){
-			perror("write");
-			break;
+		/* 受信したhttpリクエストを処理する */
+		if(read(wsock, buf, 1024) <= 0 ){
+			raise_error("reading request");
+		}else{
+			fprintf(stdout, "%s\n", buf);
+			http(wsock, buf);
 		}
 
 		/* close TCP session */
