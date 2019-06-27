@@ -16,7 +16,7 @@ void raise_error(char* description){
 int write_msg(int sock, char* msg){
 	int len = strlen(msg);
 	if(write(sock, msg, len) != len){
-		raise_error("write");
+		raise_error("write message");
 		return -1;
 	}
 	return len;
@@ -30,7 +30,6 @@ int write_file(int sock, char* file_path){
 	if(fd < 0){
 		raise_error("opening file");
 		fprintf(stderr, "cannot open file %s\n", file_path);
-		//write_msg(wsock, "HTTP/1.1 404 Not Found");
 	}else{
 		/* send file */
 		while((len = read(fd, buf, 1024)) > 0){
@@ -47,43 +46,63 @@ int http(int wsock, char* request){
 	char uri[256];
 	char version[64];
 	char* file_uri;
-	int fd, len;
-	char buf[1024];
 	char content_type[64];
+	char header[1024];
+	int status_code;
+	char* extension;
 
 	sscanf(request, "%s %s %s", method, uri, version);
 	//fprintf(stdout, "%s %s %s\n", method, uri, version);
 	/* GET以外のリクエストをはじく */
 	if (strcmp(method, "GET") != 0) {
-		write_msg(wsock, "HTTP/1.1 501 ");
-		write_msg(wsock, "Not Implemented");
+		write_msg(wsock, "HTTP/1.1 501 Not Implemented\r\n");
+		status_code = 501;
 	}
 
-	/* send message */
-	write_msg(wsock, "HTTP/1.1 200 OK\r\n");
 	//write_msg(wsock, "HTTP/1.1 302 FOUND\r\n");
 	//write_msg(wsock, "Location: https://hikalium.com");
 
-	/* open file with uri */
+	/* find file with uri */
 	if(strcmp(uri, "/") == 0){
 		file_uri = "index.html";
 	}else{
 		file_uri = uri + 1; // pathの最初の/を取り除く
 	}
-	//write_msg(wsock, "text/html\r\n");
-	/* detect file type */
-	if(strstr(file_uri, "html")){
-		strcpy(content_type, "Content-Type: text/html\r\n");
-	}else if(strstr(file_uri, "png") || strstr(file_uri, "ico")){
-		strcpy(content_type, "Content-Type: image/png\r\n");
-	}else if(strstr(file_uri, "jpg") || strstr(file_uri, "jpeg")){
-		strcpy(content_type, "Content-Type: image/jpeg\r\n");
+
+	/* check file existence */
+	if(access(file_uri, F_OK) != 0){
+		fprintf(stderr, "%s does not exist\n", file_uri);
+		strcpy(header, "HTTP/1.1 404 Not Found\r\n");
+		status_code = 404;
+	}else if(access(file_uri, R_OK) != 0){
+		strcpy(header, "HTTP/1.1 403 Forbidden\r\n");
+		status_code = 403;
+	}else{
+		strcpy(header, "HTTP/1.1 200 OK\r\n");
+		status_code = 200;
 	}
-	write_msg(wsock, content_type);
 
-	write_msg(wsock, "\r\n");
+	/* detect file type */
+	extension = strrchr(file_uri, '.') + 1;
+	if(strcmp(extension, "html") == 0){
+		strcpy(content_type, "Content-Type: text/html\r\n");
+	}else if(strcmp(extension, "png") == 0 || strcmp(extension, "ico") == 0){
+		strcpy(content_type, "Content-Type: image/png\r\n");
+	}else if(strcmp(extension, "jpg") == 0 || strcmp(extension, "jpeg") == 0){
+		strcpy(content_type, "Content-Type: image/jpeg\r\n");
+	}else{
+		strcpy(content_type, "Content-Type: application/octet-stream\r\n");
+	}
 
-	write_file(wsock, file_uri);
+	/* send header */
+	strcat(header, content_type);
+	write_msg(wsock, header);
+
+	/* send body */
+	if(status_code == 200){
+		write_msg(wsock, "\r\n");
+		write_file(wsock, file_uri);
+	}
 
 	return 0; //ステータスコード返したら楽しそう
 }
@@ -99,9 +118,6 @@ int main(){
 	rsock = socket(AF_INET, SOCK_STREAM, 0);
 	//rsock = socket(3000, 4000, 5000);
 	if(rsock < 0){
-		//perror("socket");
-		//printf("%d\n", errno);
-		//return 1;
 		raise_error("socket");
 		return 1;
 	}
