@@ -53,7 +53,7 @@ int http(int wsock, char* request){
 	char* extension;
 
 	sscanf(request, "%s %s %s", method, uri, version);
-	//fprintf(stdout, "%s %s %s\n", method, uri, version);
+	//fprintf(stderr, "%s %s %s\n", method, uri, version);
 	/* GET以外のリクエストをはじく */
 	if (strcmp(method, "GET") != 0) {
 		write_msg(wsock, "HTTP/1.1 501 Not Implemented\r\n");
@@ -130,15 +130,13 @@ int main(){
 
 	/* binding socket */
 	if(bind(rsock, (struct sockaddr *)&addr, sizeof(addr)) != 0){
-		perror("bind");
-		printf("%d\n", errno);
+		raise_error("bind");
 		return 1;
 	}
 
 	/* TCPクライアントからの接続要求を待てる状態にする = listen  */
 	if(listen(rsock, 5) != 0){
-		perror("listen");
-		printf("%d\n", errno);
+		raise_error("listen");
 		return 1;
 	}
 
@@ -157,7 +155,9 @@ int main(){
 		if(read(wsock, buf, 1024) <= 0 ){
 			raise_error("reading request");
 		}else{
-			fprintf(stdout, "%s\n", buf);
+#ifdef DEBUG
+			fprintf(stderr, "%s\n", buf);
+#endif
 			http(wsock, buf);
 		}
 
