@@ -56,7 +56,7 @@ int http(int wsock, char* request){
 	//fprintf(stderr, "%s %s %s\n", method, uri, version);
 	/* GET以外のリクエストをはじく */
 	if (strcmp(method, "GET") != 0) {
-		write_msg(wsock, "HTTP/1.1 501 Not Implemented\r\n");
+		strcpy(header, "HTTP/1.1 501 Not Implemented\r\n");
 		status_code = 501;
 	}else{
 
