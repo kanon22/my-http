@@ -58,45 +58,44 @@ int http(int wsock, char* request){
 	if (strcmp(method, "GET") != 0) {
 		write_msg(wsock, "HTTP/1.1 501 Not Implemented\r\n");
 		status_code = 501;
-	}
-
-	//write_msg(wsock, "HTTP/1.1 302 FOUND\r\n");
-	//write_msg(wsock, "Location: https://hikalium.com");
-
-	/* find file with uri */
-	if(strcmp(uri, "/") == 0){
-		file_uri = "index.html";
 	}else{
-		file_uri = uri + 1; // pathの最初の/を取り除く
+
+		/* find file with uri */
+		if(strcmp(uri, "/") == 0){
+			file_uri = "index.html";
+		}else{
+			file_uri = uri + 1; // pathの最初の/を取り除く
+		}
+
+		/* check file existence */
+		if(access(file_uri, F_OK) != 0){
+			fprintf(stderr, "%s does not exist\n", file_uri);
+			strcpy(header, "HTTP/1.1 404 Not Found\r\n");
+			status_code = 404;
+		}else if(access(file_uri, R_OK) != 0){
+			strcpy(header, "HTTP/1.1 403 Forbidden\r\n");
+			status_code = 403;
+		}else{
+			strcpy(header, "HTTP/1.1 200 OK\r\n");
+			status_code = 200;
+		}
+
+		/* detect file type */
+		extension = strrchr(file_uri, '.') + 1;
+		if(strcmp(extension, "html") == 0){
+			strcpy(content_type, "Content-Type: text/html\r\n");
+		}else if(strcmp(extension, "png") == 0 || strcmp(extension, "ico") == 0){
+			strcpy(content_type, "Content-Type: image/png\r\n");
+		}else if(strcmp(extension, "jpg") == 0 || strcmp(extension, "jpeg") == 0){
+			strcpy(content_type, "Content-Type: image/jpeg\r\n");
+		}else{
+			strcpy(content_type, "Content-Type: application/octet-stream\r\n");
+		}
+
+		/* send header */
+		strcat(header, content_type);
 	}
 
-	/* check file existence */
-	if(access(file_uri, F_OK) != 0){
-		fprintf(stderr, "%s does not exist\n", file_uri);
-		strcpy(header, "HTTP/1.1 404 Not Found\r\n");
-		status_code = 404;
-	}else if(access(file_uri, R_OK) != 0){
-		strcpy(header, "HTTP/1.1 403 Forbidden\r\n");
-		status_code = 403;
-	}else{
-		strcpy(header, "HTTP/1.1 200 OK\r\n");
-		status_code = 200;
-	}
-
-	/* detect file type */
-	extension = strrchr(file_uri, '.') + 1;
-	if(strcmp(extension, "html") == 0){
-		strcpy(content_type, "Content-Type: text/html\r\n");
-	}else if(strcmp(extension, "png") == 0 || strcmp(extension, "ico") == 0){
-		strcpy(content_type, "Content-Type: image/png\r\n");
-	}else if(strcmp(extension, "jpg") == 0 || strcmp(extension, "jpeg") == 0){
-		strcpy(content_type, "Content-Type: image/jpeg\r\n");
-	}else{
-		strcpy(content_type, "Content-Type: application/octet-stream\r\n");
-	}
-
-	/* send header */
-	strcat(header, content_type);
 	write_msg(wsock, header);
 
 	/* send body */
@@ -112,7 +111,7 @@ int main(){
 	int rsock, wsock;
 	struct sockaddr_in addr, client;
 	unsigned len;
-	//int n;
+	int buf_len;
 	char buf[1024];
 
 	/* ソケットの作成*/
@@ -152,9 +151,10 @@ int main(){
 		}
 
 		/* 受信したhttpリクエストを処理する */
-		if(read(wsock, buf, 1024) <= 0 ){
+		if((buf_len = read(wsock, buf, 1023)) <= 0 ){
 			raise_error("reading request");
 		}else{
+			buf[buf_len] = '\0';
 #ifdef DEBUG
 			fprintf(stderr, "%s\n", buf);
 #endif
