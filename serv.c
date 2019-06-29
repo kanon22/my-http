@@ -25,6 +25,7 @@ int write_msg(int sock, char* msg){
 int write_file(int sock, char* file_path){
 	int fd, len;
 	char* buf[1024];
+	buf[0] = '\0';
 
 	fd = open(file_path, O_RDONLY);
 	if(fd < 0){
@@ -143,6 +144,7 @@ int main(){
 
 	/* 複数回の接続要求を受け付ける */
 	while(1){
+		buf[0] = '\0';
 		/* accept TCP connection from client */
 		len = sizeof(client);
 		wsock = accept(rsock, (struct sockaddr *)&client, &len);
