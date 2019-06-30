@@ -43,17 +43,31 @@ int write_file(int sock, char* file_path){
 }
 
 int http(int wsock, char* request){
-	char method[16];
-	char uri[256];
-	char version[64];
+	//char method[16];
+	//char uri[256];
+	//char version[64];
+	char* method;
+	char* uri;
+	char* version;
 	char* file_uri;
 	char content_type[64];
 	char header[1024];
 	int status_code;
 	char* extension;
 
-	sscanf(request, "%s %s %s", method, uri, version);
-	//fprintf(stderr, "%s %s %s\n", method, uri, version);
+	// sscanfはバッファオーバフローの危険あり
+	//sscanf(request, "%s %s %s", method, uri, version);
+	method = request;
+	uri = strchr(method, ' ') + 1;
+	version = strchr(uri, ' ') + 1;
+	// method, uri, versionに終端文字を追加
+	method[strchr(method, ' ') - method] = '\0';
+	uri[strchr(uri, ' ') - uri] = '\0';
+	version[strchr(version, '\r') - version] = '\0';
+#ifdef DEBUG
+	fprintf(stderr, "%s %s %s\n", method, uri, version);
+#endif
+
 	/* GET以外のリクエストをはじく */
 	if (strcmp(method, "GET") != 0) {
 		strcpy(header, "HTTP/1.1 501 Not Implemented\r\n");
