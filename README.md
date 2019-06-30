@@ -24,6 +24,8 @@ localhostの12345番ポートでリクエストを待ち受ける
 6/30時点で開発中のコードには，リクエストラインのHTTP method, 目的のURI, HTTP versionを解釈する部分にバッファオーバーフローを起こす脆弱性があった．
 以下にその例を示すとともに，対処についてメモする．
 
+**修正内容が書いてあるcommitは[こちら](https://github.com/kanon22/my-http/commit/a777c7c76e4ff10ca46cbcffb6aabf063a85d126)**
+
 ## 脆弱性の概要
 当初のコードはリクエストヘッダからHTTP method, 目的のURI, HTTP versionを取得し，以下の変数に文字列として代入していた．
 ```
