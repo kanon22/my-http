@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 void raise_error(char* description){
 	perror(description);
@@ -43,9 +44,6 @@ int write_file(int sock, char* file_path){
 }
 
 int http(int wsock, char* request){
-	//char method[16];
-	//char uri[256];
-	//char version[64];
 	char* method;
 	char* uri;
 	char* version;
@@ -56,7 +54,6 @@ int http(int wsock, char* request){
 	char* extension;
 
 	// sscanfはバッファオーバフローの危険あり
-	//sscanf(request, "%s %s %s", method, uri, version);
 	method = request;
 	uri = strchr(method, ' ') + 1;
 	version = strchr(uri, ' ') + 1;
@@ -64,9 +61,6 @@ int http(int wsock, char* request){
 	method[strchr(method, ' ') - method] = '\0';
 	uri[strchr(uri, ' ') - uri] = '\0';
 	version[strchr(version, '\r') - version] = '\0';
-#ifdef DEBUG
-	fprintf(stderr, "%s %s %s\n", method, uri, version);
-#endif
 
 	/* GET以外のリクエストをはじく */
 	if (strcmp(method, "GET") != 0) {
@@ -118,10 +112,10 @@ int http(int wsock, char* request){
 		write_file(wsock, file_uri);
 	}
 
-	return 0; //ステータスコード返したら楽しそう
+	return status_code;
 }
 
-int main(){
+int main(int argc, char* argv[]){
 	int rsock, wsock;
 	struct sockaddr_in addr, client;
 	unsigned len;
@@ -138,7 +132,8 @@ int main(){
 
 	/* socket setting */
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(12345);
+	//addr.sin_port = htons(12345);
+	addr.sin_port = htons(atoi(argv[1]));
 	addr.sin_addr.s_addr = INADDR_ANY;
 
 	/* binding socket */
